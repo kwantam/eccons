@@ -16,25 +16,22 @@ You will need the GMP and GMPXX libraries and headers installed in a place your
 compiler can find them. On Archlinux, install the `gmp` package; on recent
 Debian-alikes (including Ubuntu), install `libgmp10` and `libgmp-dev` packages.
 
-Finally, you will need a reasonably recent version of Sage to actually use
-eccons. I have tested with versions 8.x and 9.x; both work.
+Finally, you will need a reasonably recent version of Sage to generate elliptic
+curve parameters. I have tested with versions 8.x and 9.x.
 
 ## usage
 
-The general idea is:
+The `eccons` executable produces output that can be written to the filesystem
+or piped into the `eccons.sage` script.
 
-1. run eccons to generate a sage script
-2. run sage on the generated script to generate the elliptic curves
-
-`eccons --help` will print out usage info for step 1.
+`eccons --help` gives usage info.
 
 As an example, if we want to generate a complete Edwards curve
 having a subgroup of order 2^251 - 9, we might say:
 
-    ./eccons -4 -E -s 2^251-9 > 2^251-9.sage
-    sage 2^251-9.sage
+    ./eccons -4 -E 2^251-9 | sage eccons.sage
 
-This should print out the parameters for two elliptic curves.
+This should print out the parameters for two such elliptic curves.
 
 ## license
 
