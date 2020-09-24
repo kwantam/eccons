@@ -1,3 +1,12 @@
+# (C) 2020 Riad S. Wahby <rsw@cs.stanford.edu>
+#
+# This file is part of eccons.
+#
+# Licensed under the Apache License, Version 2.0 (see
+# LICENSE or https://www.apache.org/licenses/LICENSE-2.0).
+# This file may not be copied, modified, or distributed
+# except according to those terms.
+
 CXXFLAGS := -std=c++17 -m64 -pedantic -pedantic-errors -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wformat=2 -Weffc++ -Wold-style-cast
 DEBUG ?= 0
 ifeq ($(DEBUG),1)
