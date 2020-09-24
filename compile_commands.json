@@ -1,0 +1,30 @@
+[
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++17",
+            "-m64",
+            "-pedantic",
+            "-pedantic-errors",
+            "-Werror",
+            "-Wall",
+            "-Wextra",
+            "-Wshadow",
+            "-Wpointer-arith",
+            "-Wcast-qual",
+            "-Wformat=2",
+            "-Weffc++",
+            "-Wold-style-cast",
+            "-O3",
+            "-flto",
+            "-Wno-missing-braces",
+            "-Wmissing-field-initializers",
+            "-o",
+            "eccons",
+            "eccons.cc"
+        ],
+        "directory": ".",
+        "file": "eccons.cc"
+    }
+]

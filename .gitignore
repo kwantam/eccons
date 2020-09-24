@@ -1,0 +1,4 @@
+eccons
+*.sage
+*.sage.out
+*.sage.py
