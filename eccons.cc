@@ -324,9 +324,6 @@ You can specify the target either as an integer or as a formula, e.g., '2^255-19
   -2 <min>    Print 2-adicity of each identified p; reject      unconstrained
               any p with less than <min> 2-adicity.
 
-  -s          after identifying appropriate D and p,            false
-              output a Sage script to construct curves.
-
   -j <nproc>  Use at most <nproc> parallel processes.           # of cpus
 
 Example:
@@ -349,7 +346,6 @@ int main (int argc, char **argv) {
     }
 
     // STEP 0: parse argumnts
-    bool emit_script = false;
     bool times_four = false;
     bool compl_edw = false;
     int arg_curr = 1;
@@ -378,15 +374,11 @@ int main (int argc, char **argv) {
             arg_curr += 1;
         } else if (std::strncmp("-E", argv[arg_curr], 2) == 0) {
             compl_edw = true;
-            emit_script = true;
             arg_curr += 1;
         } else if (std::strncmp("-2", argv[arg_curr], 2) == 0) {
             check_nargs(argc - arg_curr, 2, argv[0], "-2");
             two_adicity = std::strtol(argv[arg_curr+1], nullptr, 10);
             arg_curr += 2;
-        } else if (std::strncmp("-s", argv[arg_curr], 2) == 0) {
-            emit_script = true;
-            arg_curr += 1;
         } else if (std::strncmp("-r", argv[arg_curr], 2) == 0) {
             check_nargs(argc - arg_curr, 2, argv[0], "-r");
             r = std::strtol(argv[arg_curr+1], nullptr, 10);
@@ -456,8 +448,6 @@ int main (int argc, char **argv) {
     if (k_target != 0) {
         kq_div = (q - 1) / k_target;
         printf("# random seed was %ld\n", rseed_user);
-    } else {
-        printf("\n");
     }
     gmp_randclass rand(gmp_randinit_default);
     rand.seed(rseed_user);
@@ -598,191 +588,24 @@ int main (int argc, char **argv) {
 
     // STEP 4: Print out info for the user.
     if (!found) {
-        std::cout << "# Sorry! I didn't find any candidates. Try running with higher -r." << std::endl;
+        std::cout << "# Sorry! I didn't find any candidates. Try running with higher -r."
+                  << std::endl;
     } else {
-        std::cout << ']' << std::endl;
-        if (emit_script) {
-            std::cout << std::endl
-                      << R"EOF(
-import heapq
-import multiprocessing as mp
-import sage.schemes.elliptic_curves.isogeny_small_degree as isd
-
-MIN_DVAL = -100000000 ### change this value to control max abs(D)
-NPROC = )EOF";
-            if (max_nproc) {
-                std::cout << max_nproc;
-            } else {
-                std::cout << "mp.cpu_count()";
-            }
-            std::cout << " ### change this value to increase or decrease number of parallel threads\nCOMPL_EDW = "
-                      << (compl_edw ? "True" : "False")
-                      << R"EOF( ### when True, generate only complete twisted Edwards curves
-
-# Construct a curve by computing a j-invariant given the CM discriminant.
-@parallel(ncpus=NPROC)
-def compute_curve(dpj):
-    (D, p) = dpj[:2]
-    F = GF(p)
-    if len(dpj) == 3:
-        j = dpj[2]
-    else:
-        j = hilbert_class_polynomial(D).any_root(F)
-    (E, npoints) = maybe_twist(EllipticCurve(F, j=j), D, p)
-    if E and COMPL_EDW:
-        E = to_complete_edwards(E, D, p)
-    return (E, npoints)
-
-# decide whether to use the curve or the twist by testing for correct point order
-MT_NUM_REPS = 16
-def maybe_twist(E, D, p):
-    npoints = get_npoints(D, p)
-    if npoints is None:
-        trace = E.trace_of_frobenius()
-        e_np = p + 1 - trace
-        et_np = p + 1 + trace
-        use_curve = False
-        use_twist = False
-        if e_np % N == 0:
-            use_curve = True
-            npoints = e_np
-        elif et_np % N == 0:
-            use_twist = True
-            npoints = et_np
-    else:
-        Et = E.quadratic_twist()
-        zero = E(0, 1, 0)
-        zeroT = Et(0, 1, 0)
-        use_curve = all( zero == npoints * E.random_point() for _ in range(0, MT_NUM_REPS) )
-        use_twist = all( zeroT == npoints * Et.random_point() for _ in range(0, MT_NUM_REPS) )
-    if use_curve and use_twist:
-        print("ERROR: supersingular curve?")
-        return (None, None)
-    elif use_curve:
-        return (E, npoints)
-    elif use_twist:
-        return (Et, npoints)
-    print("ERROR: neither curve nor twist have expected order")
-    return (None, None)
-
-# convert a twisted Edwards curve to a complete curve via 2-isogenies.
-# This is from Morain, F. "Edwards curves and CM curves." arXiv 0904.2243, \S 4.2.
-def to_complete_edwards(E, D, p):
-    M = to_montgomery(E)
-    if not M:
-        return None
-    if is_complete(E, M):
-        return E
-    nsteps = num_levels(D, p)
-    if nsteps is None:
-        return None
-    step = 0
-    ctr = 1
-    q = [(0, 0, E)]
-    new_E = None
-    while q:
-        (prio, _, curve) = heapq.heappop(q)
-        if prio <= -nsteps:
-            if is_complete(curve):
-                new_E = curve
-                break
-            if prio < -nsteps:
-                continue
-        for new_iso in set( iso.codomain() for iso in isd.isogenies_2(curve) ):
-            heapq.heappush(q, (prio - 1, ctr, new_iso))
-            ctr += 1
-    if new_E is None:
-        print("ERROR: no complete twisted Edwards curves found for D=%d" % D)
-    return new_E
-
-# This is from K. Okeya, H. Kurumatani, and K. Sakurai. "Elliptic Curves with
-# the Montgomery-Form and Their Cryptographic Applications." PKC, January 2000.
-def to_montgomery(E):
-    a = E.a4()
-    b = E.a6()
-    F = E.base_field()
-    p = F.order()
-    R.<x> = F[]
-    poly = x^3 + a*x + b
-    salvals = [ (1/F(3*alpha^2+a).sqrt(),alpha) for (alpha, _) in poly.roots()[:1] if F(3*alpha^2+a).is_square() ]
-    if not salvals:
-        return None
-    (s, alpha) = salvals[0]
-    (A, B) = (F(3*alpha*s), F(s))
-    (aP, d) = (F((A+2)/B), F((A-2)/B))
-    return [A, B, aP, d]
-
-# solve 4p = U^2 - DV^2
-R.<u,v> = PolynomialRing(ZZ)
-def solve_uv(D, p):
-    solns = solve_diophantine(u**2-D*v**2-4*p)
-    if not solns:
-        print("ERROR: expected solutions to U^2-DV^2=4p, but found none\n")
-        return None
-    return (int(abs(solns[0][0])), int(abs(solns[0][1])))
-
-# given CM discriminant D, can easily solve for trace
-def get_npoints(D, p):
-    solns = solve_uv(D, p)
-    if not solns:
-        return None
-    (U, _) = solns
-    npoints = p + 1 - U
-    if npoints % N != 0:
-        npoints = p + 1 + U
-    if npoints % N != 0:
-        return None # fall back to point counting
-    return npoints
-
-# How many levels of the isogeny volcano do we need to descend to find a complete curve?
-# This is from Morain, F. "Edwards curves and CM curves." arXiv 0904.2243, \S 4.2
-def num_levels(D, p):
-    solns = solve_uv(D, p)
-    if not solns:
-        return None
-    (_, V) = solns
-    nsteps = 0
-    while V % 2 == 0:
-        nsteps += 1
-        V /= 2
-    if nsteps == 0:
-        print("ERROR: expected V to be even, but it was odd\n")
-        return None
-    return nsteps
-
-# An Edwards curve is complete if a is square and d is nonsquare.
-# This is from Bernstein, D.J., Birkner, P., Joye, M., Lange, T., and Peters, C.
-# "Twisted Edwards Curves." Proc. AFRICACRYPT 2008.
-def is_complete(E, M=None):
-    if M is None:
-        M = to_montgomery(E)
-    if M is None:
-        return None
-    F = E.base_field()
-    if F(M[2]).is_square() and not F(M[3]).is_square():
-        return True
-    return False
-
-for (curve_input, (E, npoints)) in compute_curve( x for x in DPvalues if x[0] >= MIN_DVAL ):
-    if E is None:
-        continue
-    F = E.base_field()
-    D = curve_input[0][0][0]
-    p = curve_input[0][0][1]
-    assert p == F.order()
-    curve_info = [p, D, E.j_invariant(), npoints, 2 * p + 1 - npoints, E.a4(), E.a6()]
-    monty_info = to_montgomery(E)
-    if not COMPL_EDW or monty_info:
-        print("p = %d\nD = %s\nj = %d\n  #E  = %d\n  #Et = %d\nWeierstrass form: y^2 = x^3 + a4 x + a6\n  a4  = %d\n  a6  = %d" % tuple(curve_info))
-        if monty_info:
-            print("Montgomery form: B y^2 = x^3 + A x^2 + x\n  A   = %d\n  B   = %d\nEdwards form: a x^2 + y^2 = 1 + d x^2 y^2\n  a   = %d\n  d   = %d" % tuple(monty_info))
-            if F(-monty_info[2]).is_square():
-                print("Alt Edwards form: -x^2 + y^2 = 1 + d' x^2 y^2\n  d'  = %d\n" % F(-monty_info[3]/monty_info[2]))
-            else:
-                print()
-        else:
-            print("Cannot convert to Montgomery/Edwards.\n")
-)EOF";
+        std::cout << ']'
+                  << std::endl
+                  << "# change this value to increase or decrease number of parallel threads"
+                  << std::endl
+                  << "NPROC = ";
+        if (max_nproc) {
+            std::cout << max_nproc;
+        } else {
+            std::cout << "mp.cpu_count()";
         }
+        std::cout << std::endl
+                  << "# when True, generate only complete twisted Edwards curves"
+                  << std::endl
+                  << "COMPL_EDW = "
+                  << (compl_edw ? "True" : "False")
+                  << std::endl;
     }
 }

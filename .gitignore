@@ -2,3 +2,5 @@ eccons
 *.sage
 *.sage.out
 *.sage.py
+*.out
+!eccons.sage
