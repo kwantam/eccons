@@ -170,7 +170,7 @@ def main(DPvalues, COMPL_EDW):
         D = curve_input[0][0][0]
         p = curve_input[0][0][1]
         assert p == F.order()
-        curve_info = [p, D, E.j_invariant(), npoints, 2 * p + 1 - npoints, E.a4(), E.a6()]
+        curve_info = [p, D, E.j_invariant(), npoints, 2 * p + 2 - npoints, E.a4(), E.a6()]
         monty_info = to_montgomery(E)
         if not COMPL_EDW or monty_info:
             print("p = %d" % curve_info[0])
