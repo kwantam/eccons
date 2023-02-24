@@ -19,6 +19,14 @@ Debian-alikes (including Ubuntu), install `libgmp10` and `libgmp-dev` packages.
 Finally, you will need a reasonably recent version of Sage to generate elliptic
 curve parameters. I have tested with versions 8.x and 9.x.
 
+On M1 Mac, you have to run these commands to install gmp before running make:
+
+```
+arch -arm64 brew install gmp
+find /usr /opt -name "gmp.h"
+export LDFLAGS="-I/opt/homebrew/include/ -L/opt/homebrew/Cellar/gmp/6.2.1_1/lib" # Change paths to match the above command's results
+```
+
 ## usage
 
 The `eccons` executable produces output that can be written to the filesystem
